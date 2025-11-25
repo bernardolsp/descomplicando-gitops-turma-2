@@ -1,0 +1,52 @@
+---
+# KinD Cluster Configuration for Day 1
+# Multi-node cluster with ingress controller support
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+
+name: argocd-day1
+
+# # Networking configuration
+# networking:
+#   apiServerAddress: "127.0.0.1"
+#   apiServerPort: 6443
+#   podSubnet: "10.244.0.0/16"
+#   serviceSubnet: "10.96.0.0/12"
+#   # Disable default CNI to install Calico/Cilium if needed
+#   disableDefaultCNI: false
+
+# Multi-node cluster: 1 control-plane + 3 workers
+nodes:
+  # Control Plane Node
+  - role: control-plane
+    image: kindest/node:v1.34.0
+    extraPortMappings:
+      # HTTP
+      - containerPort: 80
+        hostPort: 8080
+        protocol: TCP
+      # HTTPS
+      - containerPort: 443
+        hostPort: 8443
+        protocol: TCP
+      # ArgoCD Server (if using NodePort)
+      - containerPort: 30080
+        hostPort: 30080
+        protocol: TCP
+      # ArgoCD gRPC (if using NodePort)
+      - containerPort: 30443
+        hostPort: 30443
+        protocol: TCP
+
+  # Worker Node 1
+  - role: worker
+    image: kindest/node:v1.34.0
+
+  # Worker Node 2
+  - role: worker
+    image: kindest/node:v1.34.0
+
+  # Worker Node 3
+  - role: worker
+    image: kindest/node:v1.34.0
+
