@@ -1,0 +1,18 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: external-secret-turma2
+  namespace: default
+spec:
+  refreshInterval: 24h
+  secretStoreRef:
+    name: aws-sm
+    kind: ClusterSecretStore
+  target:
+    name: segredo-turma2
+    creationPolicy: Owner
+  data:
+  - secretKey: secret
+    remoteRef:
+      key: turma-2-segredo
+      property: turma-2-argocd

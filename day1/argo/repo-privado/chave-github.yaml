@@ -1,0 +1,28 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: token-github
+  namespace: argocd
+spec:
+  refreshInterval: 24h
+  secretStoreRef:
+    name: aws-sm
+    kind: ClusterSecretStore
+  target:
+    name: token-github
+    creationPolicy: Owner
+    template:
+      engineVersion: v2
+      metadata:
+          labels:
+              argocd.argoproj.io/secret-type: repository
+      data:
+        type: git
+        url: https://github.com/bernardolsp/repo-privado-teste.git
+        username: bernardolsp
+        password: "{{ .github_secret | toString }}"
+  data:
+  - secretKey: github_secret
+    remoteRef:
+      key: turma-2-segredo
+      property: github_secret

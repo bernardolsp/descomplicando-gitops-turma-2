@@ -2,6 +2,8 @@
 
 set -e
 
+export AWS_PAGER=""
+
 echo "================================================"
 echo "Creating EKS Cluster for Days 2-5"
 echo "================================================"
@@ -69,13 +71,6 @@ print_info "Checking if cluster exists..."
 if aws eks describe-cluster --name argocd-training --region us-east-1 &> /dev/null; then
     print_info "Cluster argocd-training already exists, skipping creation"
 else
-    # Confirm cluster creation
-    read -p "This will create an EKS cluster which will incur AWS costs. Continue? (yes/no): " -r
-    if [[ ! $REPLY =~ ^[Yy][Ee][Ss]$ ]]; then
-        echo "Cluster creation cancelled."
-        exit 0
-    fi
-
     # Create cluster
     print_info "Creating EKS cluster (this will take ~15-20 minutes)..."
     echo ""
@@ -99,39 +94,6 @@ print_success "Cluster access verified!"
 
 # Install AWS Load Balancer Controller
 print_info "Installing AWS Load Balancer Controller..."
-
-# Download IAM policy
-curl -o /tmp/iam_policy.json https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.7.0/docs/install/iam_policy.json
-
-# Create IAM policy if it doesn't exist
-print_info "Checking for AWS Load Balancer Controller IAM policy..."
-POLICY_ARN=$(aws iam list-policies --query 'Policies[?PolicyName==`AWSLoadBalancerControllerIAMPolicy`].Arn' --output text 2>/dev/null)
-
-if [ -z "$POLICY_ARN" ]; then
-    print_info "Creating IAM policy..."
-    POLICY_ARN=$(aws iam create-policy \
-        --policy-name AWSLoadBalancerControllerIAMPolicy \
-        --policy-document file:///tmp/iam_policy.json \
-        --query 'Policy.Arn' --output text 2>/dev/null)
-    print_success "IAM Policy created: ${POLICY_ARN}"
-else
-    print_info "IAM Policy already exists: ${POLICY_ARN}"
-fi
-
-# Create service account if it doesn't exist
-if kubectl get serviceaccount aws-load-balancer-controller -n kube-system &> /dev/null; then
-    print_info "Service account aws-load-balancer-controller already exists"
-else
-    print_info "Creating service account..."
-    eksctl create iamserviceaccount \
-      --cluster=argocd-training \
-      --namespace=kube-system \
-      --name=aws-load-balancer-controller \
-      --role-name AmazonEKSLoadBalancerControllerRole \
-      --attach-policy-arn=${POLICY_ARN} \
-      --approve
-    print_success "Service account created"
-fi
 
 # Install AWS Load Balancer Controller via Helm if not already installed
 if helm list -n kube-system | grep -q aws-load-balancer-controller; then
@@ -289,9 +251,9 @@ else
 fi
 
 # Tag subnets for Karpenter discovery
-print_info "Tagging subnets for Karpenter discovery..."
+print_info "Tagging private subnets for Karpenter discovery..."
 SUBNET_IDS=$(aws ec2 describe-subnets \
-    --filters "Name=tag:kubernetes.io/cluster/${CLUSTER_NAME},Values=shared" \
+    --filters "Name=tag:kubernetes.io/cluster/${CLUSTER_NAME},Values=shared" "Name=tag:kubernetes.io/role/internal-elb,Values=1" \
     --query 'Subnets[*].SubnetId' \
     --output text \
     --region ${REGION})
@@ -435,6 +397,121 @@ spec:
 EOF
 
 print_success "Default NodePool and EC2NodeClass created"
+
+# # Update ArgoCD roles trust policies to allow self-assume for role chaining
+# echo ""
+# print_info "Updating ArgoCD roles trust policies for role chaining..."
+
+# OIDC_PROVIDER=$(aws eks describe-cluster --name ${CLUSTER_NAME} --region ${REGION} --query "cluster.identity.oidc.issuer" --output text | sed -e "s/^https:\/\///")
+
+# if [ -n "$OIDC_PROVIDER" ]; then
+#     # Update ArgoCD Server role
+#     if aws iam get-role --role-name ArgocdServer-${CLUSTER_NAME} &> /dev/null; then
+#         cat > /tmp/argocd-server-trust-policy.json <<EOF
+# {
+#   "Version": "2012-10-17",
+#   "Statement": [
+#     {
+#       "Effect": "Allow",
+#       "Principal": {
+#         "Federated": "arn:aws:iam::${ACCOUNT_ID}:oidc-provider/${OIDC_PROVIDER}"
+#       },
+#       "Action": "sts:AssumeRoleWithWebIdentity",
+#       "Condition": {
+#         "StringEquals": {
+#           "${OIDC_PROVIDER}:aud": "sts.amazonaws.com",
+#           "${OIDC_PROVIDER}:sub": "system:serviceaccount:argocd:argocd-server"
+#         }
+#       }
+#     },
+#     {
+#       "Effect": "Allow",
+#       "Principal": {
+#         "AWS": "arn:aws:iam::${ACCOUNT_ID}:role/ArgocdServer-${CLUSTER_NAME}"
+#       },
+#       "Action": "sts:AssumeRole"
+#     }
+#   ]
+# }
+# EOF
+#         aws iam update-assume-role-policy \
+#             --role-name ArgocdServer-${CLUSTER_NAME} \
+#             --policy-document file:///tmp/argocd-server-trust-policy.json
+#         print_success "ArgoCD Server trust policy updated"
+#     fi
+
+#     # Update ArgoCD Application Controller role
+#     if aws iam get-role --role-name ArgocdApplicationController-${CLUSTER_NAME} &> /dev/null; then
+#         cat > /tmp/argocd-controller-trust-policy.json <<EOF
+# {
+#   "Version": "2012-10-17",
+#   "Statement": [
+#     {
+#       "Effect": "Allow",
+#       "Principal": {
+#         "Federated": "arn:aws:iam::${ACCOUNT_ID}:oidc-provider/${OIDC_PROVIDER}"
+#       },
+#       "Action": "sts:AssumeRoleWithWebIdentity",
+#       "Condition": {
+#         "StringEquals": {
+#           "${OIDC_PROVIDER}:aud": "sts.amazonaws.com",
+#           "${OIDC_PROVIDER}:sub": "system:serviceaccount:argocd:argocd-application-controller"
+#         }
+#       }
+#     },
+#     {
+#       "Effect": "Allow",
+#       "Principal": {
+#         "AWS": "arn:aws:iam::${ACCOUNT_ID}:role/ArgocdApplicationController-${CLUSTER_NAME}"
+#       },
+#       "Action": "sts:AssumeRole"
+#     }
+#   ]
+# }
+# EOF
+#         aws iam update-assume-role-policy \
+#             --role-name ArgocdApplicationController-${CLUSTER_NAME} \
+#             --policy-document file:///tmp/argocd-controller-trust-policy.json
+#         print_success "ArgoCD Application Controller trust policy updated"
+#     fi
+
+#     # Update ArgoCD ApplicationSet Controller role
+#     if aws iam get-role --role-name ArgocdApplicationSetController-${CLUSTER_NAME} &> /dev/null; then
+#         cat > /tmp/argocd-appset-trust-policy.json <<EOF
+# {
+#   "Version": "2012-10-17",
+#   "Statement": [
+#     {
+#       "Effect": "Allow",
+#       "Principal": {
+#         "Federated": "arn:aws:iam::${ACCOUNT_ID}:oidc-provider/${OIDC_PROVIDER}"
+#       },
+#       "Action": "sts:AssumeRoleWithWebIdentity",
+#       "Condition": {
+#         "StringEquals": {
+#           "${OIDC_PROVIDER}:aud": "sts.amazonaws.com",
+#           "${OIDC_PROVIDER}:sub": "system:serviceaccount:argocd:argocd-applicationset-controller"
+#         }
+#       }
+#     },
+#     {
+#       "Effect": "Allow",
+#       "Principal": {
+#         "AWS": "arn:aws:iam::${ACCOUNT_ID}:role/ArgocdApplicationSetController-${CLUSTER_NAME}"
+#       },
+#       "Action": "sts:AssumeRole"
+#     }
+#   ]
+# }
+# EOF
+#         aws iam update-assume-role-policy \
+#             --role-name ArgocdApplicationSetController-${CLUSTER_NAME} \
+#             --policy-document file:///tmp/argocd-appset-trust-policy.json
+#         print_success "ArgoCD ApplicationSet Controller trust policy updated"
+#     fi
+# else
+#     print_info "OIDC provider not found, skipping ArgoCD trust policy updates"
+# fi
 
 # Display cluster info
 echo ""

@@ -12,6 +12,14 @@ metadata:
     ManagedBy: eksctl
     karpenter.sh/discovery: argocd-training
 
+# IAM Identity Mappings - Allow Karpenter nodes to join
+iamIdentityMappings:
+  - arn: arn:aws:iam::628042573059:role/KarpenterNodeRole-argocd-training
+    username: system:node:{{EC2PrivateDNSName}}
+    groups:
+      - system:bootstrappers
+      - system:nodes
+
 # VPC Configuration - Creates a new VPC with 3 AZs
 vpc:
   clusterEndpoints:
@@ -76,6 +84,8 @@ iam:
               - iam:AddRoleToInstanceProfile
               - iam:RemoveRoleFromInstanceProfile
               - iam:GetInstanceProfile
+              - iam:TagInstanceProfile
+              - iam:ListInstanceProfiles
             Resource: "*"
           - Effect: Allow
             Action:
@@ -88,6 +98,13 @@ iam:
               - sqs:TagQueue
             Resource: "*"
 
+    # Service Account for AWS Load Balancer Controller
+    - metadata:
+        name: aws-load-balancer-controller
+        namespace: kube-system
+      wellKnownPolicies:
+        awsLoadBalancerController: true
+
     # Service Account for External Secrets Operator (Day 1)
     - metadata:
         name: external-secrets
@@ -97,20 +114,77 @@ iam:
         certManager: false
       attachPolicyARNs:
         - arn:aws:iam::aws:policy/SecretsManagerReadWrite
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess
 
-    # Service Account for ArgoCD (optional - for accessing AWS resources)
+    # Service Accounts for ArgoCD components
+    # argocd-server - Main server component
     - metadata:
         name: argocd-server
         namespace: argocd
+      roleName: ArgocdServer-argocd-training
       attachPolicy:
         Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Action:
-              - "ecr:GetAuthorizationToken"
-              - "ecr:BatchCheckLayerAvailability"
-              - "ecr:GetDownloadUrlForLayer"
-              - "ecr:BatchGetImage"
+              - "ecr:*"
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - "sts:AssumeRole"
+              - "sts:AssumeRoleWithWebIdentity"
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - "eks:DescribeCluster"
+            Resource: "*"
+
+    # argocd-application-controller - Application controller
+    - metadata:
+        name: argocd-application-controller
+        namespace: argocd
+      roleName: ArgocdApplicationController-argocd-training
+      attachPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - "ecr:*"
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - "sts:AssumeRole"
+              - "sts:AssumeRoleWithWebIdentity"
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - "eks:DescribeCluster"
+            Resource: "*"
+
+    # argocd-repo-server - Repository server
+    - metadata:
+        name: argocd-repo-server
+        namespace: argocd
+      roleName: ArgocdRepoServer-argocd-training
+      attachPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - "ecr:*"
+            Resource: "*"
+
+    # argocd-applicationset-controller - ApplicationSet controller
+    - metadata:
+        name: argocd-applicationset-controller
+        namespace: argocd
+      roleName: ArgocdApplicationSetController-argocd-training
+      attachPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - "ecr:*"
             Resource: "*"
 
 # Managed Node Groups - Minimal for Karpenter and core components

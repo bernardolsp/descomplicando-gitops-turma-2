@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: default
+  namespace: argocd
+spec:
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: '*'
+  destinations:
+  - namespace: '*'
+    server: '*'
+  sourceRepos:
+  - '*'
+  syncWindows:
+  - applications:
+    - '*'
+    clusters:
+    - '*'
+    description: permitir deploy durante o meio-dia (11h-12h)
+    duration: 1h
+    kind: allow
+    namespaces:
+    - '*'
+    schedule: '0 06 * * *'
+    timeZone: America/Sao_Paulo
+  - applications:
+    - '*'
+    clusters:
+    - '*'
+    description: bloquear durante o resto do dia
+    duration: 1h
+    kind: deny
+    namespaces:
+    - '*'
+    schedule: '0 0-06,07-23 * * *'
+    timeZone: America/Sao_Paulo

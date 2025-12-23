@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: bmi-calculator
+  namespace: argocd
+spec:
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+  destination:
+    namespace: bmi-calculator
+    server: https://kubernetes.default.svc
+  project: default
+  source:
+    path: bmi-calculator/k8s/overlays/dev
+    repoURL: https://github.com/bernardolsp/microservicos-argocd-treinamento
+    targetRevision: HEAD
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - PruneLast=true
