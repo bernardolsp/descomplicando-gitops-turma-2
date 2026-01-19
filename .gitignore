@@ -28,6 +28,8 @@ override.tf.json
 .terraformrc
 terraform.rc
 
+day2/pull-request/secret.yaml
+
 # Lambda build artifacts
 builds/
 __pycache__/

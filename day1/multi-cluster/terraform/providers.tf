@@ -3,22 +3,22 @@ provider "aws" {
 }
 
 data "aws_eks_cluster_auth" "this" {
-  for_each = toset(["main", "secondary"])
+  for_each = toset(["aula-ao-vivo"])
   name     = module.this[each.key].cluster_name
 }
 
 provider "helm" {
   kubernetes {
-    host                   = module.this["main"].cluster_endpoint
-    cluster_ca_certificate = base64decode(module.this["main"].cluster_certificate_authority_data)
-    token                  = data.aws_eks_cluster_auth.this["main"].token
+    host                   = module.this["aula-ao-vivo"].cluster_endpoint
+    cluster_ca_certificate = base64decode(module.this["aula-ao-vivo"].cluster_certificate_authority_data)
+    token                  = data.aws_eks_cluster_auth.this["aula-ao-vivo"].token
   }
 }
 
 provider "kubernetes" {
-  host                   = module.this["main"].cluster_endpoint
-  cluster_ca_certificate = base64decode(module.this["main"].cluster_certificate_authority_data)
-  token                  = data.aws_eks_cluster_auth.this["main"].token
+  host                   = module.this["aula-ao-vivo"].cluster_endpoint
+  cluster_ca_certificate = base64decode(module.this["aula-ao-vivo"].cluster_certificate_authority_data)
+  token                  = data.aws_eks_cluster_auth.this["aula-ao-vivo"].token
 }
 
 provider "kubernetes" {

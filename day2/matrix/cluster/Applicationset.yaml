@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: apps-discovery
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - matrix:
+      generators:
+      - git:
+          repoURL: https://github.com/bernardolsp/microservicos-argocd-treinamento.git
+          revision: HEAD
+          directories:
+          - path: helm/*
+      - clusters:
+          selector:
+            matchLabels:
+              environment: "secondary"
+  template:
+    metadata:
+      name: '{{.name}}-{{.path.basename}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/bernardolsp/microservicos-argocd-treinamento.git
+        targetRevision: HEAD
+        path: '{{.path.path}}'
+      destination:
+        server: '{{.server}}' 
+        # namespace: '{{.name}}-{{.path.basename}}'
+        namespace: '{{ if eq .name "in-cluster" }}namespace-customizado{{ else }}{{ .path.basename }}{{ end }}'
+      syncPolicy:
+        automated: {}
+        syncOptions:
+        - CreateNamespace=true

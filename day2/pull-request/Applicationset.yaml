@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: test-pr-applicationset
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - pullRequest:
+      github:
+        owner: bernardolsp
+        repo: microservicos-argocd-treinamento
+        tokenRef:
+          secretName: github-secret
+          key: token
+        labels:
+        - preview
+      requeueAfterSeconds: 60
+  template:
+    metadata:
+      name: 'bmi-service-{{.branch}}-{{.number}}'
+    spec:
+      source:
+        repoURL: 'https://github.com/bernardolsp/microservicos-argocd-treinamento.git'
+        targetRevision: '{{.head_sha}}'
+        path: helm/bmi-service
+        helm:
+          parameters:
+          - name: "image.tag"
+            value: "pull-{{.author}}-{{.head_sha}}"
+      project: "default"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: default

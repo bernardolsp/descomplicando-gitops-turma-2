@@ -1,0 +1,20 @@
+global:
+  domain: argocd.bernardolopes.com
+
+# Server component configuration
+server:
+  serviceAccount:
+    create: true
+    name: argocd-server
+  ingress:
+    enabled: true
+    ingressClassName: alb
+    annotations:
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/backend-protocol: HTTPS
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+      alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:628042573059:certificate/57490cdc-4e7d-4e8e-9369-d3493a91d3be
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/group.name: "shared-alb"
+  service:
+    type: ClusterIP

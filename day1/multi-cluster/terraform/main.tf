@@ -1,7 +1,7 @@
 module "vpc" {
   source = "terraform-aws-modules/vpc/aws"
 
-  name = "eks-vpc"
+  name = "aula-ao-vivo"
   cidr = "10.0.0.0/16"
 
   azs             = ["us-east-1a", "us-east-1b", "us-east-1c"]
@@ -27,7 +27,7 @@ module "vpc" {
 }
 
 module "this" {
-  for_each                                 = toset(["main", "secondary"])
+  for_each                                 = toset(["aula-ao-vivo"])
   source                                   = "terraform-aws-modules/eks/aws"
   version                                  = "21.10.1"
   name                                     = "${each.key}-eks-lab"
@@ -48,6 +48,18 @@ module "this" {
     }
   }
 
+  # Allow ALB to communicate with pods
+  node_security_group_additional_rules = {
+    ingress_alb_to_nodes = {
+      type        = "ingress"
+      protocol    = "-1"
+      from_port   = 0
+      to_port     = 0
+      cidr_blocks = module.vpc.public_subnets_cidr_blocks
+      description = "Allow ALB to reach nodes on all ports"
+    }
+  }
+
   addons = {
     coredns                = {
       before_compute = true
@@ -65,7 +77,7 @@ module "this" {
     Terraform   = "true"
     Environment = each.key
     # Add Karpenter discovery tag for main cluster
-    "karpenter.sh/discovery" = each.key == "main" ? "${each.key}-eks-lab" : ""
+    "karpenter.sh/discovery" = each.key == "aula-ao-vivo" ? "${each.key}-eks-lab" : ""
   }
 
 }
@@ -73,10 +85,10 @@ module "this" {
 module "eks_blueprints_addons" {
   source = "aws-ia/eks-blueprints-addons/aws"
 
-  cluster_name      = module.this["main"].cluster_name
-  cluster_endpoint  = module.this["main"].cluster_endpoint
-  cluster_version   = module.this["main"].cluster_version
-  oidc_provider_arn = module.this["main"].oidc_provider_arn
+  cluster_name      = module.this["aula-ao-vivo"].cluster_name
+  cluster_endpoint  = module.this["aula-ao-vivo"].cluster_endpoint
+  cluster_version   = module.this["aula-ao-vivo"].cluster_version
+  oidc_provider_arn = module.this["aula-ao-vivo"].oidc_provider_arn
   enable_metrics_server                  = true
   enable_aws_load_balancer_controller    = true
   enable_karpenter                       = false  # Disable to remove old Karpenter resources
@@ -98,7 +110,7 @@ module "karpenter" {
   source  = "terraform-aws-modules/eks/aws//modules/karpenter"
   version = "21.10.1"
 
-  cluster_name = module.this["main"].cluster_name
+  cluster_name = module.this["aula-ao-vivo"].cluster_name
 
   # Use Pod Identity for authentication
   create_pod_identity_association = true
@@ -106,12 +118,12 @@ module "karpenter" {
   service_account                 = "karpenter"
 
   # IAM role for Karpenter controller
-  iam_role_name            = "KarpenterController-main-eks-lab"
+  iam_role_name            = "KarpenterController-aula-ao-vivo"
   iam_role_use_name_prefix = false
 
   # IAM role for Karpenter nodes
   create_node_iam_role          = true
-  node_iam_role_name            = "KarpenterNodeRole-main-eks-lab"
+  node_iam_role_name            = "KarpenterNodeRole-aula-ao-vivo"
   node_iam_role_use_name_prefix = false
 
   node_iam_role_additional_policies = {
@@ -136,8 +148,8 @@ resource "helm_release" "karpenter" {
   values = [
     <<-EOT
     settings:
-      clusterName: ${module.this["main"].cluster_name}
-      clusterEndpoint: ${module.this["main"].cluster_endpoint}
+      clusterName: ${module.this["aula-ao-vivo"].cluster_name}
+      clusterEndpoint: ${module.this["aula-ao-vivo"].cluster_endpoint}
       interruptionQueue: ${module.karpenter.queue_name}
     serviceAccount:
       name: ${module.karpenter.service_account}
@@ -151,23 +163,23 @@ resource "helm_release" "karpenter" {
 
 
 
-resource "aws_secretsmanager_secret" "argocd_cluster_secret_secondary" {
-  name = "argocd-cluster-secret-secondary-lab"
-}
+# resource "aws_secretsmanager_secret" "argocd_cluster_secret_secondary" {
+#   name = "argocd-cluster-secret-secondary-lab-2"
+# }
 
 ####################### Secret Version #########################
 
-resource "aws_secretsmanager_secret_version" "argocd_cluster_secondary_secret_version" {
-  secret_id = aws_secretsmanager_secret.argocd_cluster_secret_secondary.id
-  secret_string = jsonencode({
-    config = {
-      bearerToken = nonsensitive(data.kubernetes_secret.argocd_secondary_secret_sa.data.token)
-      tlsClientConfig = {
-        caData   = base64encode(nonsensitive(data.kubernetes_secret.argocd_secondary_secret_sa.data["ca.crt"]))
-        insecure = false
-      }
-    }
-    name   = module.this["secondary"].cluster_name
-    server = module.this["secondary"].cluster_endpoint
-  })
-}
+# resource "aws_secretsmanager_secret_version" "argocd_cluster_secondary_secret_version" {
+#   secret_id = aws_secretsmanager_secret.argocd_cluster_secret_secondary.id
+#   secret_string = jsonencode({
+#     config = {
+#       bearerToken = nonsensitive(data.kubernetes_secret.argocd_secondary_secret_sa.data.token)
+#       tlsClientConfig = {
+#         caData   = base64encode(nonsensitive(data.kubernetes_secret.argocd_secondary_secret_sa.data["ca.crt"]))
+#         insecure = false
+#       }
+#     }
+#     name   = module.this["secondary"].cluster_name
+#     server = module.this["secondary"].cluster_endpoint
+#   })
+# }
