@@ -1,0 +1,101 @@
+# ApplicationSet - Gera 200 Applications (10 batches x 20 variações)
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: stress-test
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          - list:
+              elements:
+                - batch: "01"
+                - batch: "02"
+                - batch: "03"
+                - batch: "04"
+                - batch: "05"
+                - batch: "06"
+                - batch: "07"
+                - batch: "08"
+                - batch: "09"
+                - batch: "10"
+          - list:
+              elements:
+                - num: "01"
+                  version: "1.24.0"
+                - num: "02"
+                  version: "1.25.0"
+                - num: "03"
+                  version: "1.25.1"
+                - num: "04"
+                  version: "1.25.2"
+                - num: "05"
+                  version: "1.25.3"
+                - num: "06"
+                  version: "1.25.4"
+                - num: "07"
+                  version: "1.26.0"
+                - num: "08"
+                  version: "1.26.1"
+                - num: "09"
+                  version: "1.26.2"
+                - num: "10"
+                  version: "1.27.0"
+                - num: "11"
+                  version: "1.24.0"
+                - num: "12"
+                  version: "1.25.0"
+                - num: "13"
+                  version: "1.25.1"
+                - num: "14"
+                  version: "1.25.2"
+                - num: "15"
+                  version: "1.25.3"
+                - num: "16"
+                  version: "1.25.4"
+                - num: "17"
+                  version: "1.26.0"
+                - num: "18"
+                  version: "1.26.1"
+                - num: "19"
+                  version: "1.26.2"
+                - num: "20"
+                  version: "1.27.0"
+  template:
+    metadata:
+      name: 'stress-{{ .batch }}-{{ .num }}'
+      labels:
+        app.kubernetes.io/part-of: stress-test
+        stress-test/batch: '{{ .batch }}'
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/bernardolsp/descomplicando-gitops-turma-2.git
+        targetRevision: feat/day3
+        path: day3/argocd-monitoring/stressing-argo/base-chart
+        helm:
+          valuesObject:
+            appName: 'stress-{{ .batch }}-{{ .num }}'
+            nginx:
+              version: '{{ .version }}'
+              replicas: 1
+            configData:
+              index.html: |
+                <!DOCTYPE html>
+                <html>
+                <body>
+                  <h1>stress-{{ .batch }}-{{ .num }}</h1>
+                  <p>nginx:{{ .version }}</p>
+                </body>
+                </html>
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: stress-test
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true

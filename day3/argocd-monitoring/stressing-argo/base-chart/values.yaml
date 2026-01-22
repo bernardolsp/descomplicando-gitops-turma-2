@@ -1,0 +1,19 @@
+appName: stress-app
+
+nginx:
+  version: "1.27.0"
+  replicas: 1
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "100m"
+      memory: "128Mi"
+
+configData:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <body><h1>Stress Test App</h1></body>
+    </html>
