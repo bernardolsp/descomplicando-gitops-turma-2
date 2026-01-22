@@ -10,6 +10,7 @@ spec:
   generators:
     - matrix:
         generators:
+          # 15 batches x 20 apps = 300 apps (M2 friendly)
           - list:
               elements:
                 - batch: "01"
@@ -20,8 +21,6 @@ spec:
                 - batch: "06"
                 - batch: "07"
                 - batch: "08"
-                - batch: "09"
-                - batch: "10"
           - list:
               elements:
                 - num: "01"
@@ -67,6 +66,8 @@ spec:
   template:
     metadata:
       name: 'stress-{{ .batch }}-{{ .num }}'
+      annotations:
+        argocd.argoproj.io/sync-options: Force=true,Replace=true
       labels:
         app.kubernetes.io/part-of: stress-test
         stress-test/batch: '{{ .batch }}'
@@ -97,5 +98,6 @@ spec:
         server: https://kubernetes.default.svc
         namespace: stress-test
       syncPolicy:
+        automated: {}
         syncOptions:
           - CreateNamespace=true
