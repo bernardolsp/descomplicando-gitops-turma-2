@@ -3,13 +3,6 @@ appName: stress-app
 nginx:
   version: "1.27.0"
   replicas: 1
-  resources:
-    requests:
-      cpu: "50m"
-      memory: "32Mi"
-    limits:
-      cpu: "100m"
-      memory: "128Mi"
 
 configData:
   index.html: |

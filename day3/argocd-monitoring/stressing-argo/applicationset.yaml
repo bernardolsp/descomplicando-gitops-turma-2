@@ -10,7 +10,6 @@ spec:
   generators:
     - matrix:
         generators:
-          # 15 batches x 20 apps = 300 apps (M2 friendly)
           - list:
               elements:
                 - batch: "01"
@@ -21,6 +20,15 @@ spec:
                 - batch: "06"
                 - batch: "07"
                 - batch: "08"
+                - batch: "09"
+                - batch: "10"
+                - batch: "11"
+                - batch: "12"
+                # - batch: "13"
+                # - batch: "14"
+                # - batch: "15"
+                # - batch: "16"
+                # - batch: "17"
           - list:
               elements:
                 - num: "01"

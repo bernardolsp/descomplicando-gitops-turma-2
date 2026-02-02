@@ -13,10 +13,24 @@ server:
     enabled: true
     serviceMonitor:
       enabled: true
+      interval: 5s
       additionalLabels:
         release: prometheus
 
 configs:
+  # ============================================
+  # RECONCILIATION TIMEOUT - Key for stress testing!
+  # ============================================
+  params:
+    # How often to re-sync apps (even if no changes detected)
+    timeout.reconciliation: 500s    # Default: 180s | Try: 30s, 60s, 300s
+
+    # Application sync timeout
+    timeout.hard.reconciliation: 0  # Default: 0 (disabled) | Hard limit
+
+    # Repo server parallelism
+    reposerver.parallelism.limit: 30 # Default: 0 (unlimited)
+
   rbac:
     create: true
     policy.default: role:readonly
@@ -39,28 +53,80 @@ configs:
             orgs:
             - name: descomplicando-gitops-turma-2
 
-# Metrics configuration
+# ===========================================
+# STRESS TEST CONFIG - Tuning parameters
+# ===========================================
+# Tweak these values to see how ArgoCD behaves under load
+# After changing, run: helm upgrade argocd argo/argo-cd -n argocd -f values.yaml
+
 controller:
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 512Mi
+    limits:
+      cpu: 1500m
+      memory: 1500Mi
+
+  # ============================================
+  # KEY TUNING PARAMETERS - Experiment with these!
+  # ============================================
+  # Use extraArgs for CLI flags (safer than env vars)
+  extraArgs:
+    - --status-processors=20        # Default: 20 | Apps reconciling status in parallel
+    - --operation-processors=10      # Default: 10 | Sync operations in parallel
+    - --kubectl-parallelism-limit=30  # Default: 20 | Concurrent kubectl commands
+    - --repo-server-timeout-seconds=60
+
+  env:
+    # K8s API Client Tuning
+    - name: ARGOCD_K8S_CLIENT_QPS
+      value: "150"      # Default: 50 | Queries per second to K8s API
+    - name: ARGOCD_K8S_CLIENT_BURST
+      value: "300"     # Default: 100 | Burst capacity for K8s API
+
   metrics:
     enabled: true
     serviceMonitor:
       enabled: true
+      interval: 5s
       additionalLabels:
         release: prometheus
 
 repoServer:
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 768m
+      memory: 768Mi
+
+  # Repo server tuning - use extraArgs
+  extraArgs:
+    - --parallelismlimit=0         # Default: 0 (unlimited) | Try: 5, 10
+
   metrics:
     enabled: true
     serviceMonitor:
       enabled: true
+      interval: 5s
       additionalLabels:
         release: prometheus
 
 applicationSet:
+  resources:
+    requests:
+      cpu: 512m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 768Mi
   metrics:
     enabled: true
     serviceMonitor:
       enabled: true
+      interval: 5s
       additionalLabels:
         release: prometheus
 
@@ -69,6 +135,7 @@ notifications:
     enabled: true
     serviceMonitor:
       enabled: true
+      interval: 5s
       additionalLabels:
         release: prometheus
 
@@ -77,42 +144,43 @@ redis:
     enabled: true
     serviceMonitor:
       enabled: true
+      interval: 5s
       additionalLabels:
         release: prometheus
 
 # Projects
-extraObjects:
-  - apiVersion: argoproj.io/v1alpha1
-    kind: AppProject
-    metadata:
-      name: backend
-    spec:
-      sourceRepos:
-        - "*"
-      destinations:
-        - server: "https://kubernetes.default.svc"
-          namespace: "*"
-      roles:
-      - name: developer
-        description: Sync rights for backend team
-        policies:
-        - p, proj:backend:developer, applications, *, backend/*, allow
-        groups:
-        - descomplicando-gitops-turma-2:backend-team
-  - apiVersion: argoproj.io/v1alpha1
-    kind: AppProject
-    metadata:
-      name: frontend
-    spec:
-      sourceRepos:
-        - "*"
-      destinations:
-        - server: "https://kubernetes.default.svc"
-          namespace: "*"
-      roles:
-      - name: developer
-        description: Sync rights for frontend team
-        policies:
-        - p, proj:frontend:developer, applications, *, frontend/*, allow
-        groups:
-        - descomplicando-gitops-turma-2:frontend-team
+# extraObjects:
+#   - apiVersion: argoproj.io/v1alpha1
+#     kind: AppProject
+#     metadata:
+#       name: backend
+#     spec:
+#       sourceRepos:
+#         - "*"
+#       destinations:
+#         - server: "https://kubernetes.default.svc"
+#           namespace: "*"
+#       roles:
+#       - name: developer
+#         description: Sync rights for backend team
+#         policies:
+#         - p, proj:backend:developer, applications, *, backend/*, allow
+#         groups:
+#         - descomplicando-gitops-turma-2:backend-team
+#   - apiVersion: argoproj.io/v1alpha1
+#     kind: AppProject
+#     metadata:
+#       name: frontend
+#     spec:
+#       sourceRepos:
+#         - "*"
+#       destinations:
+#         - server: "https://kubernetes.default.svc"
+#           namespace: "*"
+#       roles:
+#       - name: developer
+#         description: Sync rights for frontend team
+#         policies:
+#         - p, proj:frontend:developer, applications, *, frontend/*, allow
+#         groups:
+#         - descomplicando-gitops-turma-2:frontend-team

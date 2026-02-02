@@ -17,18 +17,18 @@ echo "[2/4] Criando namespaces..."
 kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
 kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
 
-# Install Argo CD
-echo "[3/4] Instalando Argo CD..."
-helm upgrade --install argocd argo/argo-cd \
-  -n argocd \
-  -f "$SCRIPT_DIR/values.yaml" \
-  --wait
-
-# Install Prometheus
-echo "[4/4] Instalando Prometheus + Grafana..."
+# Install Prometheus FIRST (creates ServiceMonitor CRD)
+echo "[3/4] Instalando Prometheus + Grafana..."
 helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
   -n monitoring \
   -f "$SCRIPT_DIR/prometheus/values.yaml" \
+  --wait
+
+# Install Argo CD AFTER (so ServiceMonitors can be created)
+echo "[4/4] Instalando Argo CD..."
+helm upgrade --install argocd argo/argo-cd \
+  -n argocd \
+  -f "$SCRIPT_DIR/values.yaml" \
   --wait
 
 # Apply Grafana dashboard
