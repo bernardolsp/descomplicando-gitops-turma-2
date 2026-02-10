@@ -1,0 +1,6 @@
+apiVersion: v2
+name: stress-test-app
+description: Simple nginx chart for stress testing Argo CD
+type: application
+version: 1.0.0
+appVersion: "1.27.0"

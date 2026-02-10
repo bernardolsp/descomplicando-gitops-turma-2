@@ -1,0 +1,12 @@
+appName: stress-app
+
+nginx:
+  version: "1.27.0"
+  replicas: 1
+
+configData:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <body><h1>Stress Test App</h1></body>
+    </html>

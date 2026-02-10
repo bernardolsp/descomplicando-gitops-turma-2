@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.appName }}-html
+data:
+{{- range $key, $value := .Values.configData }}
+  {{ $key }}: |
+{{ $value | indent 4 }}
+{{- end }}
