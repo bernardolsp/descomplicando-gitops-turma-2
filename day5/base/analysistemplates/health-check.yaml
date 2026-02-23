@@ -1,0 +1,32 @@
+# AnalysisTemplate: Health Check
+# Verifica se a aplicação responde HTTP 200 após o deploy
+#
+# Uso: Adicione ao Stage staging/prod para validar saúde básica
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: health-check
+  namespace: kargo-demo
+spec:
+  metrics:
+  - name: http-health
+    interval: 10s
+    count: 6          # Tenta 6 vezes = 1 minuto total
+    successCondition: result == "200"
+    provider:
+      job:
+        spec:
+          template:
+            spec:
+              containers:
+              - name: curl
+                image: curlimages/curl:latest
+                command:
+                - /bin/sh
+                - -c
+                - |
+                  # Faz request para health endpoint
+                  STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://demo-app:8080/health 2>/dev/null || echo "000")
+                  echo "$STATUS"
+              restartPolicy: Never
+          backoffLimit: 1

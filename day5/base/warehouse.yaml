@@ -1,0 +1,28 @@
+# Warehouse: guestbook
+#
+# A Warehouse monitora um repositório de imagens (ou Git, ou Helm charts)
+# e cria Freight automaticamente quando encontra novas versões.
+#
+# Neste exemplo, monitoramos o guestbook da Akuity.
+
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Warehouse
+metadata:
+  name: demo
+  namespace: kargo-demo
+spec:
+  # Intervalo de polling - verifica a cada 2 minutos
+  interval: 2m
+  
+  # Subscriptions definem o que monitorar
+  subscriptions:
+    - image:
+        # Repositório de imagens
+        repoURL: docker.io/devlopesbernardo/version-app
+        imageSelectionStrategy: SemVer
+        constraint: ^1.0.0
+        strictSemvers: false
+  
+  # Política de criação de Freight
+  # Automatic = cria Freight automaticamente quando encontra nova versão
+  freightCreationPolicy: Automatic

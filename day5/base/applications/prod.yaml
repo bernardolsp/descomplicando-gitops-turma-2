@@ -1,0 +1,29 @@
+# ArgoCD Application for Guestbook
+#
+# Esta Application é atualizada pelo Kargo quando um Freight é promovido.
+# A annotation "kargo.akuity.io/authorized-stage" permite que o Kargo
+# gerencie esta Application.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: demo-prod
+  namespace: argocd
+  annotations:
+    # Permite que o Kargo atualize esta Application
+    kargo.akuity.io/authorized-stage: kargo-demo:prod
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/bernardolsp/microservicos-argocd-treinamento.git
+    targetRevision: env/prod
+    path: overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: demo-app-prod
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

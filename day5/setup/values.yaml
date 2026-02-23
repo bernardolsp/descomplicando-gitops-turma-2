@@ -1,0 +1,37 @@
+# Valores para instalacao do Kargo
+# Documentacao: https://github.com/akuity/kargo/tree/main/charts/kargo
+
+api:
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 80
+  adminAccount:
+    enabled: true
+  tls:
+    enabled: false
+
+controller:
+  replicas: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  
+  # Integracao com ArgoCD - HABILITADA
+  argocd:
+    integrationEnabled: true
+    namespace: argocd
+    watchArgocdNamespaceOnly: false
+
+# RBAC - Criar automaticamente
+rbac:
+  installClusterRoles: true
+  installClusterRoleBindings: true
+
+# DEX desabilitado
+dex:
+  enabled: false

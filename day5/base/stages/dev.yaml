@@ -1,0 +1,90 @@
+# Stage: dev
+#
+# O Stage dev recebe Freight DIRETAMENTE da Warehouse.
+# É o primeiro ambiente do pipeline.
+#
+# Fluxo de promocao:
+# 1. Clone do repo Git
+# 2. Atualiza imagem no kustomization.yaml (kustomize-set-image)
+# 3. Commit e push para branch env/dev
+# 4. Atualiza Application do ArgoCD para apontar para o novo commit
+
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: dev
+  namespace: kargo-demo
+  annotations:
+    kargo.akuity.io/color: "#4CAF50"
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: demo
+      sources:
+        direct: true
+  
+  promotionTemplate:
+    spec:
+      steps:
+        # 1. Clone do repositorio
+        - uses: git-clone
+          config:
+            repoURL: https://github.com/bernardolsp/microservicos-argocd-treinamento
+            checkout:
+              - branch: main
+                path: ./src
+              - branch: env/dev
+                create: true
+                path: ./out
+
+        # 2. Limpa diretorio de saida
+        - uses: git-clear
+          config:
+            path: ./out
+
+        # 3. Copia arquivos base para out
+        - uses: copy
+          config:
+            inPath: ./src/rollouts/kargo-k8s/base
+            outPath: ./out/base
+
+        # 4. Copia overlay dev
+        - uses: copy
+          config:
+            inPath: ./src/rollouts/kargo-k8s/overlays/dev
+            outPath: ./out/overlays/dev
+
+        # 5. Atualiza imagem no kustomization.yaml
+        - uses: kustomize-set-image
+          as: update-image
+          config:
+            path: ./out/overlays/dev
+            images:
+              # URL completo deve bater com a Warehouse
+              - image: docker.io/devlopesbernardo/version-app
+                tag: '${{ imageFrom("docker.io/devlopesbernardo/version-app").Tag }}'
+
+        # 6. Commit das alteracoes
+        - uses: git-commit
+          as: commit
+          config:
+            path: ./out
+            message: '${{ outputs["update-image"].commitMessage }}'
+
+        # 7. Push para branch env/dev
+        - uses: git-push
+          config:
+            path: ./out
+
+        # 8. Atualiza Application do ArgoCD
+        - uses: argocd-update
+          config:
+            apps:
+              - name: demo-dev
+                namespace: argocd
+                sources:
+                  - repoURL: https://github.com/bernardolsp/microservicos-argocd-treinamento
+                    desiredRevision: '${{ outputs["commit"].commit }}'
+  
+  verification: {}

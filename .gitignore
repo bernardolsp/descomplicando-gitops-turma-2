@@ -30,6 +30,10 @@ terraform.rc
 
 day2/pull-request/secret.yaml
 
+**/.argocd-credentials
+
+**/.kargo-credentials
+
 # Lambda build artifacts
 builds/
 __pycache__/

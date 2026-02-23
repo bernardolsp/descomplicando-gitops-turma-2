@@ -1,0 +1,105 @@
+# Valores para instalação do ArgoCD (Single Cluster)
+#
+# ArgoCD para ambiente de desenvolvimento/local
+# Mais leve que a versão multi-cluster
+
+server:
+  # Tipo de serviço para acesso local
+  service:
+    type: NodePort
+  
+  # Métricas
+  metrics:
+    enabled: true
+    service:
+      annotations:
+        prometheus.io/scrape: "true"
+  
+  # Recursos mínimos para ambiente local
+  resources:
+    limits:
+      cpu: 300m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+controller:
+  # Recursos - aumentados para evitar OOMKills
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  
+  # Métricas
+  metrics:
+    enabled: true
+
+repoServer:
+  resources:
+    limits:
+      cpu: 300m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  
+  metrics:
+    enabled: true
+
+# Redis - cache de manifests
+redis:
+  enabled: true
+  resources:
+    limits:
+      cpu: 200m
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 64Mi
+
+# DEX (SSO) - desabilitado para ambiente local
+dex:
+  enabled: false
+
+# Notifications - desabilitado para simplificar
+notifications:
+  enabled: false
+
+# ApplicationSet habilitado
+applicationSet:
+  enabled: true
+
+# Configurações do ArgoCD
+configs:
+  cm:
+    # Permitir recursos de apps.argoproj.io para Kargo
+    resource.exclusions: ""
+    
+    # Política de health para Rollouts
+    resource.customizations: |
+      argoproj.io/Rollout:
+        health.lua: |
+          hs = {}
+          if obj.status ~= nil then
+            if obj.status.phase == "Healthy" then
+              hs.status = "Healthy"
+              hs.message = "Rollout is healthy"
+            elseif obj.status.phase == "Paused" then
+              hs.status = "Paused"
+              hs.message = "Rollout is paused"
+            elseif obj.status.phase == "Degraded" then
+              hs.status = "Degraded"
+              hs.message = "Rollout is degraded"
+            else
+              hs.status = "Progressing"
+              hs.message = "Waiting for rollout to finish"
+            end
+            return hs
+          end
+          hs.status = "Progressing"
+          hs.message = "Waiting for rollout to appear"
+          return hs

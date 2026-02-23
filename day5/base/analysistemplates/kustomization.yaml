@@ -1,0 +1,8 @@
+# Kustomization for AnalysisTemplates
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - health-check.yaml
+  - integration-test.yaml
+  - prometheus-check.yaml

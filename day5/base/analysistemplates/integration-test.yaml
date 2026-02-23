@@ -1,0 +1,50 @@
+# AnalysisTemplate: Integration Test
+# Executa testes de integração em container
+#
+# Uso: Para validação completa de funcionalidades
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: integration-test
+  namespace: kargo-demo
+spec:
+  args:
+  - name: TEST_TAG
+    value: ""  # Pode ser sobrescrito pelo Stage
+  metrics:
+  - name: integration-tests
+    interval: 30s
+    count: 1
+    successCondition: result == "PASSED"
+    provider:
+      job:
+        spec:
+          template:
+            spec:
+              containers:
+              - name: test-runner
+                image: devlopesbernardo/version-app:latest
+                command:
+                - /bin/sh
+                - -c
+                - |
+                  # Executa testes de integração
+                  # Exemplo: smoke tests, API tests, etc.
+                  
+                  # Simula teste (substitua com seus testes reais)
+                  echo "Executando testes de integração..."
+                  sleep 5
+                  
+                  # Exemplo de lógica de teste
+                  # TESTE_PASSED=true
+                  # if [ "$TESTE_PASSED" == "true" ]; then
+                  #   echo "PASSED"
+                  # else
+                  #   echo "FAILED"
+                  #   exit 1
+                  # fi
+                  
+                  # Para demo, sempre passa
+                  echo "PASSED"
+              restartPolicy: Never
+          backoffLimit: 0

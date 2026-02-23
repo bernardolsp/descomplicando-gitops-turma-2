@@ -1,0 +1,9 @@
+# Project: kargo-demo
+# 
+# Um Project no Kargo é como um namespace que agrupa recursos relacionados.
+# Ele isola Stages, Warehouses e Freight de outros projetos.
+
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Project
+metadata:
+  name: kargo-demo

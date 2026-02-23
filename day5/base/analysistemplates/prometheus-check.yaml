@@ -1,0 +1,49 @@
+# AnalysisTemplate: Prometheus Health Check
+# Verifica métricas do Prometheus para validar saúde da aplicação
+#
+# Uso: Para validação de error rate, latência, etc.
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: prometheus-health
+  namespace: kargo-demo
+spec:
+  metrics:
+  # Error Rate - deve ser menor que 1%
+  - name: error-rate
+    interval: 1m
+    count: 5
+    successCondition: result[0] <= 0.01
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          sum(rate(http_requests_total{service="demo-app",code=~"5.."}[1m]))
+          /
+          sum(rate(http_requests_total{service="demo-app"}[1m]))
+  
+  # Latência P95 - deve ser menor que 500ms
+  - name: latency-p95
+    interval: 1m
+    count: 5
+    successCondition: result[0] <= 0.5
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          histogram_quantile(0.95, 
+            sum(rate(http_request_duration_seconds_bucket{service="demo-app"}[1m])) by (le)
+          )
+  
+  # Disponibilidade - deve ser maior que 99%
+  - name: availability
+    interval: 1m
+    count: 5
+    successCondition: result[0] >= 0.99
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          sum(rate(http_requests_total{service="demo-app"}[1m]))
+          /
+          sum(rate(http_requests_total{service="demo-app"}[1m]))
